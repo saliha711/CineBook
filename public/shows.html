@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Select Show | CineBook</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <h1>CineBook 🎬</h1>
+        <nav>
+            <button onclick="goHome()">Home</button>
+            <button onclick="goBookings()">My Bookings</button>
+            <button onclick="logout()">Logout</button>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>Select Show</h2>
+        </div>
+        <div id="shows" class="grid"></div>
+    </div>
+
+    <script>
+        function requireLogin() {
+            if (!localStorage.getItem('user_id')) {
+                window.location.href = 'login.html';
+            }
+        }
+
+        function goHome() {
+            window.location.href = 'movies.html';
+        }
+
+        function goBookings() {
+            window.location.href = 'mybookings.html';
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        }
+
+        function selectShow(id) {
+            localStorage.setItem('show_id', id);
+            window.location.href = 'booking.html';
+        }
+
+        requireLogin();
+
+        const movieId = localStorage.getItem('movie_id');
+        if (!movieId) {
+            window.location.href = 'movies.html';
+        }
+
+        fetch('/shows/' + movieId)
+            .then(async res => {
+                const data = await res.json();
+                if (!res.ok) {
+                    throw data;
+                }
+                return data;
+            })
+            .then(data => {
+                const showsContainer = document.getElementById('shows');
+
+                if (!data || data.length === 0) {
+                    showsContainer.innerHTML = '<div class="empty-state">No shows available.</div>';
+                    return;
+                }
+
+                const html = data.map(show => `
+                    <div class="card">
+                        <div class="card-content">
+                            <h3>${show.theatre_name}</h3>
+                            <p>Date: ${new Date(show.show_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                            <p>Time: ${show.show_time}</p>
+                            <div class="actions">
+                                <button onclick="selectShow(${show.show_id})">Select Seats</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                showsContainer.innerHTML = html;
+            })
+            .catch(err => {
+                const showsContainer = document.getElementById('shows');
+                showsContainer.innerHTML = '<div class="empty-state">Unable to load shows right now. Please try again later.</div>';
+                console.error(err);
+            });
+    </script>
+</body>
+
+</html>

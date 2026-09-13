@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>My Bookings | CineBook</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <h1>CineBook 🎬</h1>
+        <nav>
+            <button onclick="goHome()">Home</button>
+            <button onclick="goBookings()">My Bookings</button>
+            <button onclick="logout()">Logout</button>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>My Bookings</h2>
+        </div>
+
+        <div id="bookingList" class="grid"></div>
+        <div style="margin-top:20px; text-align:center;">
+            <button onclick="cancelSelected()" class="danger">Cancel Selected</button>
+        </div>
+    </div>
+
+    <script>
+        function requireLogin() {
+            if (!localStorage.getItem('user_id')) {
+                window.location.href = 'login.html';
+            }
+        }
+
+        function goHome() {
+            window.location.href = 'movies.html';
+        }
+
+        function goBookings() {
+            window.location.href = 'mybookings.html';
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        }
+
+        requireLogin();
+
+        let selectedBookings = [];
+        const userId = localStorage.getItem('user_id');
+
+        function toggle(id) {
+            if (selectedBookings.includes(id)) {
+                selectedBookings = selectedBookings.filter(item => item !== id);
+            } else {
+                selectedBookings.push(id);
+            }
+        }
+
+        function renderBookings(data) {
+            const bookingList = document.getElementById('bookingList');
+
+            if (!data || data.length === 0) {
+                bookingList.innerHTML = '<div class="empty-state">No bookings found.</div>';
+                return;
+            }
+
+            bookingList.innerHTML = data.map(booking => `
+                <div class="card">
+                    <div class="card-content">
+                        <input type="checkbox" onclick="toggle(${booking.booking_id})" aria-label="Select booking for cancellation">
+                        <h3>${booking.movie_name}</h3>
+                        <p>Seat: ${booking.seat_number}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadBookings() {
+            fetch('/mybookings/' + userId)
+                .then(async res => {
+                    const data = await res.json();
+                    if (!res.ok) {
+                        throw data;
+                    }
+                    return data;
+                })
+                .then(data => {
+                    renderBookings(data);
+                })
+                .catch(err => {
+                    document.getElementById('bookingList').innerHTML = '<div class="empty-state">Unable to load bookings. Please try again later.</div>';
+                    console.error(err);
+                });
+        }
+
+        async function cancelSelected() {
+            if (selectedBookings.length === 0) {
+                alert('Please select at least one booking to cancel.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/cancel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ booking_ids: selectedBookings })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw data;
+                }
+
+                selectedBookings = [];
+                loadBookings();
+                alert(data.message || 'Cancelled Successfully');
+            } catch (err) {
+                alert(err.error || 'Unable to cancel selected bookings.');
+            }
+        }
+
+        loadBookings();
+    </script>
+</body>
+
+</html>

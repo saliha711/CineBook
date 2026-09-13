@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Admin Panel | CineBook</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <h1>CineBook Admin</h1>
+        <nav>
+            <button onclick="goHome()">Home</button>
+            <button onclick="logoutAdmin()">Logout</button>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div id="adminAuthCard" class="admin-card">
+            <h3>Admin Login</h3>
+            <input id="adminPassword" type="password" placeholder="Admin password">
+            <button onclick="loginAdmin()">Login</button>
+            <p id="adminMsg" class="message" aria-live="polite"></p>
+        </div>
+
+        <div id="adminPanel" style="display:none;">
+            <div class="admin-layout">
+                <div class="admin-form">
+                    <h3>Add Movie</h3>
+                    <input id="mname" placeholder="Movie Name">
+                    <input id="genre" placeholder="Genre">
+                    <input id="duration" placeholder="Duration">
+                    <input id="image" placeholder="Image URL">
+                    <button onclick="addMovie()">Add Movie</button>
+                </div>
+
+                <div class="admin-form">
+                    <h3>Add Theatre</h3>
+                    <input id="tname" placeholder="Theatre Name">
+                    <input id="location" placeholder="Location">
+                    <button onclick="addTheatre()">Add Theatre</button>
+                </div>
+
+                <div class="admin-form">
+                    <h3>Add Screen</h3>
+                    <input id="theatre_id" placeholder="Theatre ID">
+                    <input id="capacity" placeholder="Capacity">
+                    <button onclick="addScreen()">Add Screen</button>
+                </div>
+
+                <div class="admin-form">
+                    <h3>Add Show</h3>
+                    <input id="movie_id" placeholder="Movie ID">
+                    <input id="screen_id" placeholder="Screen ID">
+                    <input id="date" type="date">
+                    <input id="time" type="time">
+                    <button onclick="addShow()">Add Show</button>
+                </div>
+            </div>
+
+            <div class="admin-layout">
+                <div class="admin-card">
+                    <h3>Movies</h3>
+                    <div id="movieList" class="list-stack"></div>
+                </div>
+
+                <div class="admin-card">
+                    <h3>Theatres</h3>
+                    <div id="theatreList" class="list-stack"></div>
+                </div>
+
+                <div class="admin-card">
+                    <h3>Screens</h3>
+                    <div id="screenList" class="list-stack"></div>
+                </div>
+
+                <div class="admin-card">
+                    <h3>Shows</h3>
+                    <div id="showList" class="list-stack"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const adminPanel = document.getElementById('adminPanel');
+        const adminAuthCard = document.getElementById('adminAuthCard');
+        const adminMsg = document.getElementById('adminMsg');
+
+        function setAdminMessage(text, type = 'error') {
+            adminMsg.textContent = text || '';
+            adminMsg.className = 'message ' + type;
+        }
+
+        function getAdminToken() {
+            return localStorage.getItem('admin_token');
+        }
+
+        function goHome() {
+            window.location.href = 'admin.html';
+        }
+
+        function logoutAdmin() {
+            localStorage.removeItem('admin_token');
+            localStorage.removeItem('admin_logged_in');
+            window.location.href = 'login.html';
+        }
+
+        async function apiFetch(url, options = {}) {
+            const token = getAdminToken();
+            const response = await fetch(url, {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: 'Bearer ' + token } : {}),
+                    ...(options.headers || {})
+                }
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw data;
+            }
+
+            return data;
+        }
+
+        async function loginAdmin() {
+            const password = document.getElementById('adminPassword').value.trim();
+            if (!password) {
+                setAdminMessage('Admin password is required.', 'error');
+                return;
+            }
+
+            try {
+                const data = await fetch('/admin-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                }).then(async res => {
+                    const json = await res.json();
+                    if (!res.ok) throw json;
+                    return json;
+                });
+
+                localStorage.setItem('admin_token', data.token);
+                localStorage.setItem('admin_logged_in', 'true');
+                adminAuthCard.style.display = 'none';
+                adminPanel.style.display = 'block';
+                setAdminMessage('Admin login successful.', 'success');
+                loadAdminData();
+            } catch (error) {
+                setAdminMessage(error.error || 'Admin login failed.', 'error');
+            }
+        }
+
+        function renderMovieList(items) {
+            const list = document.getElementById('movieList');
+            if (!items.length) {
+                list.innerHTML = '<div class="empty-state">No movies available.</div>';
+                return;
+            }
+
+            list.innerHTML = items.map(movie => `
+                <div class="list-item">
+                    <div>
+                        <strong>${movie.movie_name}</strong>
+                        <small>ID: ${movie.movie_id} • ${movie.genre} • ${movie.duration}</small>
+                    </div>
+                    <button class="small danger" onclick="deleteMovie(${movie.movie_id})">Delete</button>
+                </div>
+            `).join('');
+        }
+
+        function renderTheatreList(items) {
+            const list = document.getElementById('theatreList');
+            if (!items.length) {
+                list.innerHTML = '<div class="empty-state">No theatres available.</div>';
+                return;
+            }
+
+            list.innerHTML = items.map(theatre => `
+                <div class="list-item">
+                    <div>
+                        <strong>${theatre.theatre_name}</strong>
+                        <small>ID: ${theatre.theatre_id} • ${theatre.location}</small>
+                    </div>
+                    <button class="small danger" onclick="deleteTheatre(${theatre.theatre_id})">Delete</button>
+                </div>
+            `).join('');
+        }
+
+        function renderScreenList(items) {
+            const list = document.getElementById('screenList');
+            if (!items.length) {
+                list.innerHTML = '<div class="empty-state">No screens available.</div>';
+                return;
+            }
+
+            list.innerHTML = items.map(screen => `
+                <div class="list-item">
+                    <div>
+                        <strong>Screen ${screen.screen_id}</strong>
+                        <small>ID: ${screen.screen_id} • Theatre: ${screen.theatre_name} • Capacity: ${screen.capacity}</small>
+                    </div>
+                    <button class="small danger" onclick="deleteScreen(${screen.screen_id})">Delete</button>
+                </div>
+            `).join('');
+        }
+
+        function renderShowList(items) {
+            const list = document.getElementById('showList');
+            if (!items.length) {
+                list.innerHTML = '<div class="empty-state">No shows available.</div>';
+                return;
+            }
+
+            list.innerHTML = items.map(show => `
+                <div class="list-item">
+                    <div>
+                        <strong>${show.movie_name}</strong>
+                        <small>ID: ${show.show_id} • ${show.theatre_name} • ${show.show_date} • ${show.show_time}</small>
+                    </div>
+                    <button class="small danger" onclick="deleteShow(${show.show_id})">Delete</button>
+                </div>
+            `).join('');
+        }
+
+        async function loadAdminData() {
+            try {
+                const [movies, theatres, screens, shows] = await Promise.all([
+                    apiFetch('/admin/movies'),
+                    apiFetch('/admin/theatres'),
+                    apiFetch('/admin/screens'),
+                    apiFetch('/admin/shows')
+                ]);
+
+                renderMovieList(movies);
+                renderTheatreList(theatres);
+                renderScreenList(screens);
+                renderShowList(shows);
+            } catch (error) {
+                setAdminMessage(error.error || 'Unable to load admin data.', 'error');
+            }
+        }
+
+        async function addMovie() {
+            const payload = {
+                name: document.getElementById('mname').value.trim(),
+                genre: document.getElementById('genre').value.trim(),
+                duration: document.getElementById('duration').value.trim(),
+                image_url: document.getElementById('image').value.trim()
+            };
+
+            try {
+                const data = await apiFetch('/add-movie', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                alert(data.message);
+                document.getElementById('mname').value = '';
+                document.getElementById('genre').value = '';
+                document.getElementById('duration').value = '';
+                document.getElementById('image').value = '';
+                loadAdminData();
+            } catch (error) {
+                alert(error.error || 'Unable to add movie.');
+            }
+        }
+
+        async function addTheatre() {
+            const payload = {
+                name: document.getElementById('tname').value.trim(),
+                location: document.getElementById('location').value.trim()
+            };
+
+            try {
+                const data = await apiFetch('/add-theatre', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                alert(data.message);
+                document.getElementById('tname').value = '';
+                document.getElementById('location').value = '';
+                loadAdminData();
+            } catch (error) {
+                alert(error.error || 'Unable to add theatre.');
+            }
+        }
+
+        async function addScreen() {
+            const payload = {
+                theatre_id: document.getElementById('theatre_id').value,
+                capacity: document.getElementById('capacity').value
+            };
+
+            try {
+                const data = await apiFetch('/add-screen', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                alert(data.message);
+                document.getElementById('theatre_id').value = '';
+                document.getElementById('capacity').value = '';
+                loadAdminData();
+            } catch (error) {
+                alert(error.error || 'Unable to add screen.');
+            }
+        }
+
+        async function addShow() {
+            const payload = {
+                movie_id: document.getElementById('movie_id').value,
+                screen_id: document.getElementById('screen_id').value,
+                show_date: document.getElementById('date').value,
+                show_time: document.getElementById('time').value
+            };
+
+            try {
+                const data = await apiFetch('/add-show', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                alert(data.message);
+                document.getElementById('movie_id').value = '';
+                document.getElementById('screen_id').value = '';
+                document.getElementById('date').value = '';
+                document.getElementById('time').value = '';
+                loadAdminData();
+            } catch (error) {
+                alert(error.error || 'Unable to add show.');
+            }
+        }
+
+        async function deleteMovie(id) {
+            try {
+                const data = await apiFetch('/delete-movie/' + id, { method: 'DELETE' });
+                alert(data.message);
+                loadAdminData();
+            } catch (error) {
+                alert(error.error || 'Unable to delete movie.');
+            }
+        }
+
+        async function deleteTheatre(id) {
+            try {
+                const data = await apiFetch('/delete-theatre/' + id, { method: 'DELETE' });
+                alert(data.message);
+                loadAdminData();
+            } catch (error) {
+                alert(error.error || 'Unable to delete theatre.');
+            }
+        }
+
+        async function deleteScreen(id) {
+            try {
+                const data = await apiFetch('/delete-screen/' + id, { method: 'DELETE' });
+                alert(data.message);
+                loadAdminData();
+            } catch (error) {
+                alert(error.error || 'Unable to delete screen.');
+            }
+        }
+
+        async function deleteShow(id) {
+            try {
+                const data = await apiFetch('/delete-show/' + id, { method: 'DELETE' });
+                alert(data.message);
+                loadAdminData();
+            } catch (error) {
+                alert(error.error || 'Unable to delete show.');
+            }
+        }
+
+        if (!getAdminToken()) {
+            adminAuthCard.style.display = 'block';
+            adminPanel.style.display = 'none';
+        } else {
+            adminAuthCard.style.display = 'none';
+            adminPanel.style.display = 'block';
+            loadAdminData();
+        }
+    </script>
+</body>
+
+</html>

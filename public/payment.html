@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Simulated Payment | CineBook</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <h1>CineBook 🎬</h1>
+        <nav>
+            <button onclick="goHome()">Home</button>
+            <button onclick="goBookings()">My Bookings</button>
+            <button onclick="logout()">Logout</button>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>Simulated Payment</h2>
+        </div>
+
+        <div class="card" style="max-width: 480px; margin: 0 auto;">
+            <div class="card-content">
+                <p>Total Seats: <strong id="count">0</strong></p>
+                <h3>Total Amount: ₹<span id="amount">0</span></h3>
+                <button onclick="pay()">Pay Now</button>
+                <p id="paymentMessage" class="message" aria-live="polite"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function requireLogin() {
+            if (!localStorage.getItem('user_id')) {
+                window.location.href = 'login.html';
+            }
+        }
+
+        function goHome() {
+            window.location.href = 'movies.html';
+        }
+
+        function goBookings() {
+            window.location.href = 'mybookings.html';
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        }
+
+        requireLogin();
+
+        const seatCount = Number(localStorage.getItem('seat_count'));
+        const totalAmount = Number(localStorage.getItem('total_amount'));
+
+        if (!seatCount || !totalAmount) {
+            window.location.href = 'movies.html';
+        }
+
+        document.getElementById('count').textContent = seatCount;
+        document.getElementById('amount').textContent = totalAmount;
+
+        function pay() {
+            const message = document.getElementById('paymentMessage');
+            message.textContent = 'Simulated payment successful. Redirecting to My Bookings...';
+            message.className = 'message success';
+
+            setTimeout(() => {
+                localStorage.removeItem('seat_count');
+                localStorage.removeItem('total_amount');
+                window.location.href = 'mybookings.html';
+            }, 1000);
+        }
+    </script>
+</body>
+
+</html>

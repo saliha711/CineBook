@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Book Seats | CineBook</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <h1>CineBook 🎬</h1>
+        <nav>
+            <button onclick="goHome()">Home</button>
+            <button onclick="goBookings()">My Bookings</button>
+            <button onclick="logout()">Logout</button>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>Select Seats</h2>
+        </div>
+
+        <div id="summary" class="summary-box">
+            <strong id="count">Selected Seats: 0</strong>
+            <strong>Total: ₹0</strong>
+        </div>
+
+        <div class="screen">SCREEN</div>
+        <div id="seatGrid" class="seats"></div>
+
+        <div style="text-align:center; margin-top:24px;">
+            <button onclick="confirmBooking()">Confirm Booking</button>
+        </div>
+    </div>
+
+    <script>
+        function requireLogin() {
+            if (!localStorage.getItem('user_id')) {
+                window.location.href = 'login.html';
+            }
+        }
+
+        function goHome() {
+            window.location.href = 'movies.html';
+        }
+
+        function goBookings() {
+            window.location.href = 'mybookings.html';
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        }
+
+        requireLogin();
+
+        const pricePerSeat = 150;
+        let selected = [];
+        const showId = localStorage.getItem('show_id');
+
+        if (!showId) {
+            window.location.href = 'movies.html';
+        }
+
+        const countEl = document.getElementById('count');
+        const summaryEl = document.getElementById('summary');
+
+        function updateSummary() {
+            const total = selected.length * pricePerSeat;
+            countEl.textContent = `Selected Seats: ${selected.length}`;
+            summaryEl.innerHTML = `<strong>Selected Seats: ${selected.length}</strong><strong>Total: ₹${total}</strong>`;
+        }
+
+        fetch('/seats/' + showId)
+            .then(async res => {
+                const data = await res.json();
+                if (!res.ok) {
+                    throw data;
+                }
+                return data;
+            })
+            .then(data => {
+                const seatGrid = document.getElementById('seatGrid');
+
+                if (!data || data.length === 0) {
+                    seatGrid.innerHTML = '<div class="empty-state">No seats are available for this show.</div>';
+                    return;
+                }
+
+                data.forEach(seat => {
+                    const div = document.createElement('div');
+                    div.textContent = seat.seat_number;
+                    div.className = 'seat' + (seat.status === 'Booked' ? ' booked' : '');
+
+                    div.addEventListener('click', () => {
+                        if (seat.status === 'Booked') {
+                            return;
+                        }
+
+                        const seatId = Number(seat.show_seat_id);
+                        if (selected.includes(seatId)) {
+                            selected = selected.filter(id => id !== seatId);
+                            div.classList.remove('selected');
+                        } else {
+                            selected.push(seatId);
+                            div.classList.add('selected');
+                        }
+
+                        updateSummary();
+                    });
+
+                    seatGrid.appendChild(div);
+                });
+            })
+            .catch(err => {
+                const seatGrid = document.getElementById('seatGrid');
+                seatGrid.innerHTML = '<div class="empty-state">Unable to load seats. Please try again.</div>';
+                console.error(err);
+            });
+
+        async function confirmBooking() {
+            if (selected.length === 0) {
+                alert('Please select at least one seat.');
+                return;
+            }
+
+            const totalAmount = selected.length * pricePerSeat;
+            localStorage.setItem('seat_count', selected.length);
+            localStorage.setItem('total_amount', totalAmount);
+
+            try {
+                const response = await fetch('/book', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: localStorage.getItem('user_id'),
+                        show_id: Number(showId),
+                        seats: selected
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw data;
+                }
+
+                window.location.href = 'payment.html';
+            } catch (err) {
+                alert(err.error || 'Booking failed. Please choose different seats and try again.');
+            }
+        }
+    </script>
+</body>
+
+</html>

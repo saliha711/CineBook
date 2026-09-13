@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>CineBook Login</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="login-container">
+        <h1>CineBook 🎬</h1>
+        <p>Welcome back to your movie booking portal.</p>
+
+        <input id="username" placeholder="Username">
+        <input id="password" type="password" placeholder="Password">
+
+        <div class="btn-group">
+            <button onclick="login()">Login</button>
+            <button onclick="register()" class="secondary">Register</button>
+        </div>
+        <p id="msg" class="message" aria-live="polite"></p>
+    </div>
+
+    <script>
+        const username = document.getElementById('username');
+        const password = document.getElementById('password');
+        const msg = document.getElementById('msg');
+
+        function setMessage(text, type = 'error') {
+            msg.textContent = text || '';
+            msg.className = 'message ' + type;
+        }
+
+        function login() {
+            const usernameValue = username.value.trim();
+            const passwordValue = password.value.trim();
+
+            if (!usernameValue || !passwordValue) {
+                setMessage('Username and password are required.', 'error');
+                return;
+            }
+
+            fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usernameValue, password: passwordValue })
+            })
+                .then(async res => {
+                    const data = await res.json();
+                    if (!res.ok) {
+                        throw data;
+                    }
+                    return data;
+                })
+                .then(data => {
+                    localStorage.setItem('user_id', data.user_id);
+                    setMessage('Login successful. Redirecting...', 'success');
+                    window.location.href = 'movies.html';
+                })
+                .catch(err => {
+                    setMessage(err.error || 'Login failed. Please try again.', 'error');
+                });
+        }
+
+        function register() {
+            const usernameValue = username.value.trim();
+            const passwordValue = password.value.trim();
+
+            if (!usernameValue || !passwordValue) {
+                setMessage('Username and password are required.', 'error');
+                return;
+            }
+
+            fetch('/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usernameValue, password: passwordValue })
+            })
+                .then(async res => {
+                    const data = await res.json();
+                    if (!res.ok) {
+                        throw data;
+                    }
+                    return data;
+                })
+                .then(data => {
+                    setMessage(data.message || 'Registered successfully.', 'success');
+                    username.value = '';
+                    password.value = '';
+                })
+                .catch(err => {
+                    setMessage(err.error || 'Registration failed.', 'error');
+                });
+        }
+
+        if (localStorage.getItem('user_id')) {
+            window.location.href = 'movies.html';
+        }
+    </script>
+</body>
+
+</html>

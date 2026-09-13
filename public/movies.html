@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Movies | CineBook</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <h1>CineBook 🎬</h1>
+        <nav>
+            <button onclick="goHome()">Home</button>
+            <button onclick="goBookings()">My Bookings</button>
+            <button onclick="logout()">Logout</button>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>Now Showing</h2>
+        </div>
+        <div class="grid" id="movies"></div>
+    </div>
+
+    <script>
+        function requireLogin() {
+            if (!localStorage.getItem('user_id')) {
+                window.location.href = 'login.html';
+            }
+        }
+
+        function goHome() {
+            window.location.href = 'movies.html';
+        }
+
+        function goBookings() {
+            window.location.href = 'mybookings.html';
+        }
+
+        function logout() {
+            localStorage.removeItem('user_id');
+            localStorage.removeItem('movie_id');
+            localStorage.removeItem('show_id');
+            localStorage.removeItem('seat_count');
+            localStorage.removeItem('total_amount');
+            window.location.href = 'login.html';
+        }
+
+        function openShows(id) {
+            localStorage.setItem('movie_id', id);
+            window.location.href = 'shows.html';
+        }
+
+        requireLogin();
+
+        fetch('/movies')
+            .then(async res => {
+                const data = await res.json();
+                if (!res.ok) {
+                    throw data;
+                }
+                return data;
+            })
+            .then(data => {
+                const moviesContainer = document.getElementById('movies');
+
+                if (!data || data.length === 0) {
+                    moviesContainer.innerHTML = '<div class="empty-state">No movies available right now. Please check back later.</div>';
+                    return;
+                }
+
+                const html = data.map(movie => `
+                    <div class="card">
+                        <img src="${movie.image_url || 'https://via.placeholder.com/300x420?text=CineBook'}" alt="${movie.movie_name}">
+                        <div class="card-content">
+                            <h3>${movie.movie_name}</h3>
+                            <p>${movie.genre}</p>
+                            <p>${movie.duration}</p>
+                            <div class="actions">
+                                <button onclick="openShows(${movie.movie_id})">Book Now</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                moviesContainer.innerHTML = html;
+            })
+            .catch(err => {
+                const moviesContainer = document.getElementById('movies');
+                moviesContainer.innerHTML = '<div class="empty-state">Unable to load movies right now. Please try again later.</div>';
+                console.error(err);
+            });
+    </script>
+</body>
+
+</html>
