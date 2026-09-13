@@ -1,257 +1,142 @@
 # CineBook
 
-**CineBook** is a full-stack movie ticket booking system built with **Node.js, Express.js, MySQL, HTML, CSS, and JavaScript**.
-
-It provides an end-to-end booking workflow where users can register, browse movies, select shows and seats, complete a simulated payment, and manage their bookings. An admin dashboard provides management of movies, theatres, screens, and shows.
+CineBook is a full-stack movie ticket booking system built as a college project. Users can register, browse movies, choose a theatre show and seats, complete a simulated payment step, and manage their bookings. An admin panel manages the movies, theatres, screens, and shows available in the system.
 
 ## Features
 
-### User
-
-* User registration and login
-* Browse available movies with genre, duration, and poster
-* View shows by movie, theatre, date, and time
-* Real-time seat availability from the database
-* Select multiple seats and create bookings
-* Simulated payment flow
-* View previous bookings
-* Cancel bookings and release seats
-
-### Admin
-
-* Protected admin authentication
-* View movies, theatres, screens, and shows
-* Add movies, theatres, screens, and shows
-* Delete movies, theatres, screens, and shows
-* Automatic seat generation when creating a show
-* Validation to prevent deletion when records are still in use
+- User registration and login
+- Movie browsing with show and theatre details
+- Database-backed seat availability and seat selection
+- Ticket booking and booking cancellation
+- My Bookings page
+- Simulated payment flow at ₹150 per seat
+- Admin management for movies, theatres, screens, and shows
+- Automatic seat generation when a show is created
+- Admin deletion of supported records with dependency checks
 
 ## Tech Stack
 
-| Technology       | Purpose                                     |
-| ---------------- | ------------------------------------------- |
-| **Node.js**      | Backend runtime                             |
-| **Express.js**   | REST API and server                         |
-| **MySQL**        | Relational database                         |
-| **JavaScript**   | Frontend interactions and API communication |
-| **HTML & CSS**   | User interface                              |
-| **mysql**        | MySQL connectivity                          |
-| **dotenv**       | Environment configuration                   |
-| **Git & GitHub** | Version control                             |
+| Technology | Purpose |
+| --- | --- |
+| Node.js and Express.js | Backend server, routing, validation, and static file serving |
+| MySQL | Persistent application data and booking records |
+| HTML, CSS, JavaScript | Frontend pages, styling, API requests, and interactions |
+| `mysql` | MySQL connection from Node.js |
+| `dotenv` | Environment configuration |
+| `cors` | Express CORS middleware |
 
-## Architecture
+## How It Works
 
 ```text
-              ┌─────────────────────┐
-              │      Browser        │
-              │  HTML / CSS / JS    │
-              └──────────┬──────────┘
-                         │
-                    REST API
-                         │
-              ┌──────────▼──────────┐
-              │   Express.js        │
-              │      Backend        │
-              └──────────┬──────────┘
-                         │
-                    SQL Queries
-                         │
-              ┌──────────▼──────────┐
-              │       MySQL         │
-              │      Database       │
-              └─────────────────────┘
+User -> Frontend -> Express.js Backend -> MySQL Database
 ```
 
-The frontend communicates with the Express backend using `fetch()` requests. The backend handles authentication, movie/show management, seat availability, bookings, cancellations, and database operations.
+The frontend in `public/` calls the Express backend with `fetch()`. The backend reads and updates MySQL records for users, movies, theatres, screens, shows, seats, and bookings. Booking uses a database transaction to check seat availability, create booking records, and mark selected seats as booked.
+
+### User Flow
+
+Register/Login -> Browse Movies -> Select Show -> Select Seats -> Book -> Simulated Payment -> My Bookings
+
+### Admin Flow
+
+The admin logs in, receives a token, and uses the admin panel to view or add movies, theatres, screens, and shows. Creating a show also generates seats from the selected screen capacity. Existing shows, screens, or bookings are checked before supported records are deleted.
 
 ## Database Design
 
-CineBook uses a relational MySQL database with the following main entities:
+`cinebook.sql` creates the following tables:
 
-```text
-Users
-  │
-  └── Bookings ── ShowSeats ── Shows
-                              │
-                    ┌─────────┴─────────┐
-                    │                   │
-                 Movies              Screens
-                                        │
-                                    Theatres
-```
+- `Users` - registered users
+- `Movies` - movie name, genre, duration, and image URL
+- `Theatres` - theatre names and locations
+- `Screens` - theatre screens and capacities
+- `Shows` - movie, screen, date, and time information
+- `ShowSeats` - generated seats and their availability status
+- `Bookings` - user, show, seat, and booking date records
 
-### Main Tables
+The logical relationships are `Theatres -> Screens`, `Movies + Screens -> Shows`, `Shows -> ShowSeats`, and `Users + Shows + ShowSeats -> Bookings`. The current SQL uses ID columns but does not declare foreign-key constraints.
 
-* **Users** — stores registered users
-* **Movies** — movie information
-* **Theatres** — theatre details
-* **Screens** — screens and their capacities
-* **Shows** — movie screenings with date and time
-* **ShowSeats** — seat availability for each show
-* **Bookings** — user seat bookings and booking timestamps
+## API Endpoints
 
-The complete database schema and sample data are available in [`cinebook.sql`](cinebook.sql).
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/register`, `/login`, `/admin-login` | User and admin authentication |
+| `GET` | `/movies`, `/shows/:movie_id`, `/seats/:show_id` | Browse movies, shows, and seats |
+| `POST` | `/book`, `/cancel` | Create or cancel bookings |
+| `GET` | `/mybookings/:user_id` | List a user's bookings |
+| `GET` | `/admin/movies`, `/admin/theatres`, `/admin/screens`, `/admin/shows` | View admin records |
+| `POST` | `/add-movie`, `/add-theatre`, `/add-screen`, `/add-show` | Add admin records |
+| `DELETE` | `/delete-movie/:id`, `/delete-theatre/:id`, `/delete-screen/:id`, `/delete-show/:id` | Delete supported admin records |
 
-## Key API Endpoints
-
-| Method   | Endpoint               | Purpose                          |
-| -------- | ---------------------- | -------------------------------- |
-| `POST`   | `/register`            | Register a user                  |
-| `POST`   | `/login`               | Authenticate a user              |
-| `GET`    | `/movies`              | Retrieve movies                  |
-| `GET`    | `/shows/:movie_id`     | Retrieve shows for a movie       |
-| `GET`    | `/seats/:show_id`      | Retrieve seat availability       |
-| `POST`   | `/book`                | Create a booking                 |
-| `POST`   | `/cancel`              | Cancel bookings                  |
-| `GET`    | `/mybookings/:user_id` | Retrieve user bookings           |
-| `POST`   | `/admin-login`         | Authenticate admin               |
-| `POST`   | `/add-movie`           | Add a movie                      |
-| `POST`   | `/add-theatre`         | Add a theatre                    |
-| `POST`   | `/add-screen`          | Add a screen                     |
-| `POST`   | `/add-show`            | Create a show and generate seats |
-| `DELETE` | `/delete-movie/:id`    | Delete a movie                   |
-| `DELETE` | `/delete-theatre/:id`  | Delete a theatre                 |
-| `DELETE` | `/delete-screen/:id`   | Delete a screen                  |
-| `DELETE` | `/delete-show/:id`     | Delete a show                    |
+Admin endpoints require the token returned by `/admin-login` in the `Authorization: Bearer <token>` header.
 
 ## Project Structure
 
 ```text
 CineBook/
-│
-├── public/
-│   ├── admin.html
-│   ├── booking.html
-│   ├── login.html
-│   ├── movies.html
-│   ├── mybookings.html
-│   ├── payment.html
-│   ├── shows.html
-│   └── style.css
-│
-├── cinebook.sql
-├── db.js
-├── server.js
-├── package.json
+├── public/          # HTML pages, CSS, and browser JavaScript
+├── server.js        # Express server and API routes
+├── db.js            # MySQL connection
+├── cinebook.sql     # Database setup
+├── package.json     # Scripts and dependencies
 ├── package-lock.json
-├── .gitignore
-└── .env
+└── .gitignore
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-Make sure you have:
-
-* [Node.js](https://nodejs.org/) and npm
-* MySQL Server
-* Git
-
-### 1. Clone the repository
+- Node.js and npm
+- Local MySQL server
 
 ```bash
 git clone https://github.com/saliha711/CineBook.git
 cd CineBook
-```
-
-### 2. Install dependencies
-
-```bash
 npm install
 ```
 
-### 3. Configure environment variables
-
-Create a `.env` file in the project root:
+Create a local `.env` file:
 
 ```env
 DB_HOST=localhost
-DB_USER=root
+DB_USER=your_mysql_user
 DB_PASSWORD=your_mysql_password
 DB_NAME=cinebook
 DB_PORT=3306
 PORT=3000
-ADMIN_PASSWORD=your_admin_password
+ADMIN_PASSWORD=choose_an_admin_password
 ```
 
-### 4. Set up the database
-
-Create the database and tables using:
+Set up the database and start the server:
 
 ```bash
 mysql -u root -p < cinebook.sql
-```
-
-Alternatively, import `cinebook.sql` using MySQL Workbench.
-
-### 5. Start the application
-
-```bash
 npm start
 ```
 
-Open:
-
-```text
-http://localhost:3000
-```
-
-## Booking Flow
-
-```text
-Login
-  ↓
-Browse Movies
-  ↓
-Select Movie
-  ↓
-Choose Show
-  ↓
-Select Available Seats
-  ↓
-Create Booking
-  ↓
-Simulated Payment
-  ↓
-View My Bookings
-```
-
-When a booking is created, the selected seats are marked as **Booked** in the database. When a booking is cancelled, the associated seats are released back to **Available**.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## What I Learned
 
-Building CineBook involved working with:
-
-* REST API design using Express.js
-* Relational database design and SQL queries
-* Connecting a Node.js backend with MySQL
-* Frontend-to-backend communication using REST APIs
-* Managing relationships between movies, shows, screens, seats, and bookings
-* Handling seat availability and booking state
-* Implementing CRUD operations
-* Authentication and protected admin operations
-* Environment-based configuration
-* Git and GitHub version control
+- Building REST-style Express routes and connecting a frontend to a MySQL database
+- Designing related tables for movies, shows, seats, and bookings
+- Using transactions to keep seat availability and booking records consistent
+- Managing frontend state and page navigation with browser `localStorage`
+- Implementing role-specific admin operations and request validation
 
 ## Future Improvements
 
-* Password hashing with bcrypt
-* More robust user authentication and session management
-* Real payment gateway integration
-* Automated testing
-* Production deployment
-* Improved seat-locking for concurrent bookings
-
-> CineBook is an academic project. Payment is simulated, and authentication is designed for the project's development environment rather than production use.
+- Add password hashing with `bcrypt`
+- Use secure sessions or `httpOnly` cookies for authentication
+- Integrate a real payment gateway
+- Add stronger database constraints, automated tests, and deployment configuration
 
 ## Author
 
-**Saliha S A**
+Saliha S A  \
+B.Tech Computer Science & Design  \
+FISAT
 
-B.Tech Computer Science & Design
-Federal Institute of Science and Technology (FISAT)
+## GitHub
 
-## Repository
-
-[GitHub — CineBook](https://github.com/saliha711/CineBook)
+[CineBook repository](https://github.com/saliha711/CineBook)
